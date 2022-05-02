@@ -6,7 +6,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-/* global Buffer, __non_webpack_require__ */
+/* global __non_webpack_require__ */
 
 import {objectAssign} from './utils.js';
 import DataViewWrapper from './dataview.js';
@@ -171,6 +171,8 @@ export function loadView(dataView, {expanded = false, includeUnknown = false} = 
         fileDataOffset,
         jfifDataOffset,
         tiffHeaderOffset,
+        tiffHeaderLength,
+        c2paData,
         iptcDataOffset,
         xmpChunks,
         iccChunks,

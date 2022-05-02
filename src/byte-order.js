@@ -8,7 +8,8 @@ const BIG_ENDIAN = 0x4d4d;
 export default {
     BIG_ENDIAN,
     LITTLE_ENDIAN,
-    getByteOrder
+    getByteOrder,
+    setByteOrder,
 };
 
 function getByteOrder(dataView, tiffHeaderOffset) {
@@ -18,4 +19,9 @@ function getByteOrder(dataView, tiffHeaderOffset) {
         return BIG_ENDIAN;
     }
     throw new Error('Illegal byte order value. Faulty image.');
+}
+
+function setByteOrder(dataView, tiffHeaderOffset, byteOrder) {
+    if (byteOrder != LITTLE_ENDIAN && byteOrder != BIG_ENDIAN) throw new Error("invalid byte order");
+    dataView.setUint16(tiffHeaderOffset, byteOrder)
 }

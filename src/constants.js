@@ -7,6 +7,7 @@ export default {
     USE_JFIF: true,
     USE_PNG_FILE: true,
     USE_EXIF: true,
+    USE_C2PA: true,
     USE_IPTC: true,
     USE_XMP: true,
     USE_ICC: true,

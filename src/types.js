@@ -31,9 +31,12 @@ const tagTypes = {
 export default {
     getAsciiValue,
     getByteAt,
+    setByteAt,
     getAsciiAt,
     getShortAt,
+    setShortAt,
     getLongAt,
+    setLongAt,
     getRationalAt,
     getUndefinedAt,
     getSlongAt,
@@ -52,6 +55,10 @@ function getByteAt(dataView, offset) {
     return dataView.getUint8(offset);
 }
 
+function setByteAt(dataView, offset, value) {
+    return dataView.setUint8(offset, value);
+}
+
 function getAsciiAt(dataView, offset) {
     return dataView.getUint8(offset);
 }
@@ -60,8 +67,16 @@ function getShortAt(dataView, offset, byteOrder) {
     return dataView.getUint16(offset, byteOrder === ByteOrder.LITTLE_ENDIAN);
 }
 
+function setShortAt(dataView, offset, value, byteOrder) {
+    return dataView.setUint16(offset, value, byteOrder === ByteOrder.LITTLE_ENDIAN);
+}
+
 function getLongAt(dataView, offset, byteOrder) {
     return dataView.getUint32(offset, byteOrder === ByteOrder.LITTLE_ENDIAN);
+}
+
+function setLongAt(dataView, offset, value, byteOrder) {
+    return dataView.setUint32(offset, value, byteOrder === ByteOrder.LITTLE_ENDIAN);
 }
 
 function getRationalAt(dataView, offset, byteOrder) {

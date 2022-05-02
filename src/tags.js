@@ -44,7 +44,7 @@ function read0thIfd(dataView, tiffHeaderOffset, byteOrder, includeUnknown) {
     return readIfd(dataView, '0th', tiffHeaderOffset, get0thIfdOffset(dataView, tiffHeaderOffset, byteOrder), byteOrder, includeUnknown);
 }
 
-function get0thIfdOffset(dataView, tiffHeaderOffset, byteOrder) {
+export function get0thIfdOffset(dataView, tiffHeaderOffset, byteOrder) {
     return tiffHeaderOffset + Types.getLongAt(dataView, tiffHeaderOffset + 4, byteOrder);
 }
 
@@ -244,7 +244,32 @@ function getNumberOfFields(dataView, offset, byteOrder) {
     return 0;
 }
 
+export function writeTag(dataView, tagCode, valueString, offset, tiffHeaderOffset, nextToastOffset, byteOrder) {
+    const TAG_TYPE = Types.tagTypes['ASCII'];
+    const TAG_COUNT = valueString.length+1;
+
+
+    const TAG_CODE_IPTC_NAA = 0x83bb;
+    const TAG_TYPE_OFFSET = Types.getTypeSize('SHORT');
+    const TAG_COUNT_OFFSET = TAG_TYPE_OFFSET + Types.getTypeSize('SHORT');
+    const TAG_VALUE_OFFSET = TAG_COUNT_OFFSET + Types.getTypeSize('LONG');
+    const TAG_VALUE_POINTER = nextToastOffset;
+
+    let res = dataView;
+    
+    Types.setShortAt(res, offset, tagCode, byteOrder);
+    Types.setShortAt(res, offset + TAG_TYPE_OFFSET, TAG_TYPE, byteOrder);
+    Types.setLongAt(res, offset + TAG_COUNT_OFFSET, TAG_COUNT, byteOrder);
+
+    Types.setLongAt(res, offset + TAG_VALUE_OFFSET, TAG_VALUE_POINTER, byteOrder);
+
+    const forceByteType = tagCode === TAG_CODE_IPTC_NAA;
+    // will require space valueString + 2 to put 2 null chars after the stirng
+    setTagValue(res, tiffHeaderOffset + TAG_VALUE_POINTER, TAG_TYPE, valueString, byteOrder, forceByteType);
+}
+
 function readTag(dataView, ifdType, tiffHeaderOffset, offset, byteOrder, includeUnknown) {
+    //writeCreatorTag(dataView, "Narek Galstyan asodfnaskdfnj ", 40,tiffHeaderOffset, 90-tiffHeaderOffset)
     const TAG_CODE_IPTC_NAA = 0x83bb;
     const TAG_TYPE_OFFSET = Types.getTypeSize('SHORT');
     const TAG_COUNT_OFFSET = TAG_TYPE_OFFSET + Types.getTypeSize('SHORT');
@@ -296,6 +321,7 @@ function readTag(dataView, ifdType, tiffHeaderOffset, offset, byteOrder, include
         }
     }
 
+    console.log("extracted", tagCode, tagType, tagCount, tagName, tagValue, offset, tagDescription);
     return {
         id: tagCode,
         name: tagName,
@@ -327,6 +353,16 @@ function getTagValue(dataView, offset, type, count, byteOrder, forceByteType = f
     }
 
     return value;
+}
+
+function setTagValue(dataView, offset, type, value_str, _byteOrder, _forceByteType = false) {
+
+    for (let valueIndex = 0; valueIndex < value_str.length; valueIndex++) {
+        Types.setByteAt(dataView, offset, value_str.charCodeAt(valueIndex));
+        offset += Types.typeSizes[type];
+    }
+    Types.setByteAt(dataView, offset, 0);
+    Types.setByteAt(dataView, offset+1, 0);
 }
 
 function tagValueFitsInDataView(dataView, tiffHeaderOffset, tagValueOffset, tagType, tagCount) {
