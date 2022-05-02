@@ -4,19 +4,20 @@
 
 import {getStringFromDataView} from './utils.js';
 import Constants from './constants.js';
+import {Jumbf} from './c2pa.ts';
 
 export default {
     isJpegFile,
-    findJpegOffsets
+    findJpegOffsets,
 };
 
 const MIN_JPEG_DATA_BUFFER_LENGTH = 2;
 const JPEG_ID = 0xffd8;
 const JPEG_ID_SIZE = 2;
-const APP_ID_OFFSET = 4;
-const APP_MARKER_SIZE = 2;
+export const APP_ID_OFFSET = 4;
+export const APP_MARKER_SIZE = 2;
 const JFIF_DATA_OFFSET = 2; // From start of APP0 marker.
-const TIFF_HEADER_OFFSET = 10; // From start of APP1 marker.
+export const TIFF_HEADER_OFFSET = 10; // From start of APP1 marker.
 const IPTC_DATA_OFFSET = 18; // From start of APP13 marker.
 const XMP_DATA_OFFSET = 33; // From start of APP1 marker.
 const XMP_EXTENDED_DATA_OFFSET = 79; // From start of APP1 marker including GUID, total length, and offset.
@@ -37,14 +38,15 @@ const DRI_MARKER = 0xffdd;
 const SOS_MARKER = 0xffda;
 
 const APP0_MARKER = 0xffe0;
-const APP1_MARKER = 0xffe1;
+export const APP1_MARKER = 0xffe1;
 const APP2_MARKER = 0xffe2;
+const APP11_MARKER = 0xffeb
 const APP13_MARKER = 0xffed;
 const APP15_MARKER = 0xffef;
 const COMMENT_MARKER = 0xfffe;
 
 const APP0_JFIF_IDENTIFIER = 'JFIF';
-const APP1_EXIF_IDENTIFIER = 'Exif';
+export const APP1_EXIF_IDENTIFIER = 'Exif';
 const APP1_XMP_IDENTIFIER = 'http://ns.adobe.com/xap/1.0/\x00';
 const APP1_XMP_EXTENDED_IDENTIFIER = 'http://ns.adobe.com/xmp/extension/\x00';
 const APP13_IPTC_IDENTIFIER = 'Photoshop 3.0';
@@ -59,7 +61,8 @@ function findJpegOffsets(dataView) {
     let sof0DataOffset;
     let sof2DataOffset;
     let jfifDataOffset;
-    let tiffHeaderOffset;
+    let tiffHeaderOffset, tiffHeaderLength;
+    let c2paData;
     let iptcDataOffset;
     let xmpChunks;
     let iccChunks;
@@ -76,6 +79,8 @@ function findJpegOffsets(dataView) {
         } else if (Constants.USE_EXIF && isApp1ExifMarker(dataView, appMarkerPosition)) {
             fieldLength = dataView.getUint16(appMarkerPosition + APP_MARKER_SIZE);
             tiffHeaderOffset = appMarkerPosition + TIFF_HEADER_OFFSET;
+            tiffHeaderLength = APP_MARKER_SIZE + fieldLength;
+            // console.error("tiff header offset,length", tiffHeaderOffset, APP_MARKER_SIZE + fieldLength);
         } else if (Constants.USE_XMP && isApp1XmpMarker(dataView, appMarkerPosition)) {
             if (!xmpChunks) {
                 xmpChunks = [];
@@ -88,6 +93,16 @@ function findJpegOffsets(dataView) {
             }
             fieldLength = dataView.getUint16(appMarkerPosition + APP_MARKER_SIZE);
             xmpChunks.push(getExtendedXmpChunkDetails(appMarkerPosition, fieldLength));
+        }
+        else if (Constants.USE_C2PA && isC2paMarker(dataView, appMarkerPosition)) {
+            fieldLength = dataView.getUint16(appMarkerPosition + APP_MARKER_SIZE);
+            // 16 is the initial 2 bytes used to represent field length
+            if (!c2paData) c2paData = []
+            let offset = appMarkerPosition + APP_MARKER_SIZE;
+            let jumbfView = new DataView(dataView.buffer.slice(offset + 2 /*2 bytes storing field length*/, offset + 2 + fieldLength));
+            // let meta = new Jumbf(jumbfView);
+            let meta = null;
+            c2paData.push({offset: offset, length: fieldLength, meta});
         } else if (Constants.USE_IPTC && isApp13PhotoshopMarker(dataView, appMarkerPosition)) {
             fieldLength = dataView.getUint16(appMarkerPosition + APP_MARKER_SIZE);
             iptcDataOffset = appMarkerPosition + IPTC_DATA_OFFSET;
@@ -111,6 +126,7 @@ function findJpegOffsets(dataView) {
             break;
         }
         appMarkerPosition += APP_MARKER_SIZE + fieldLength;
+        console.log("next", appMarkerPosition);
     }
 
     return {
@@ -118,10 +134,12 @@ function findJpegOffsets(dataView) {
         fileDataOffset: sof0DataOffset || sof2DataOffset,
         jfifDataOffset,
         tiffHeaderOffset,
+        tiffHeaderLength,
+        c2paData,
         iptcDataOffset,
         xmpChunks,
         iccChunks,
-        mpfDataOffset
+        mpfDataOffset,
     };
 }
 
@@ -195,6 +213,12 @@ function getExtendedXmpChunkDetails(appMarkerPosition, fieldLength) {
         dataOffset: appMarkerPosition + XMP_EXTENDED_DATA_OFFSET,
         length: fieldLength - (XMP_EXTENDED_DATA_OFFSET - APP_MARKER_SIZE)
     };
+}
+function isC2paMarker(dataView, appMarkerPosition) {
+    // for now, any valid APP11 data is considered valid C2PA header.
+    // perhaps the spec will give more details or perhaps it iwll continue
+    // validating this later with its own means but this should work for now
+    return dataView.getUint16(appMarkerPosition) === APP11_MARKER;
 }
 
 function isApp13PhotoshopMarker(dataView, appMarkerPosition) {
